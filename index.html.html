@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mural AlfaMais Goiás 2026 🎨</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+// Garante que Firebase está disponível antes de qualquer coisa
+window.__firebaseReady = false;
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:'DM Sans',sans-serif;overflow:hidden}
+
+/* ── QUADRO NEGRO ── */
+body{
+  background:#1c2b1c;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(44,80,44,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(30,60,30,0.3) 0%, transparent 50%),
+    repeating-linear-gradient(180deg,transparent 0px,transparent 31px,rgba(255,255,255,0.03) 31px,rgba(255,255,255,0.03) 32px);
+}
+
+/* ── ABAS ── */
+.app{display:flex;flex-direction:column;height:100vh}
+.tabs{
+  display:flex;
+  background:rgba(0,0,0,0.5);
+  border-bottom:2px solid rgba(255,255,255,0.12);
+  padding:0 16px;gap:4px;align-items:flex-end;flex-shrink:0;
+  backdrop-filter:blur(12px);
+}
+.tab-btn{
+  padding:10px 20px;border:none;border-radius:10px 10px 0 0;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+  background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.45);
+}
+.tab-btn.ativo{background:#4CAF50;color:white;padding:12px 24px;font-size:14px}
+.tab-btn:hover:not(.ativo){background:rgba(255,255,255,0.14);color:rgba(255,255,255,0.9)}
+.painel{display:none;flex:1;overflow:hidden}
+.painel.ativo{display:flex;flex-direction:column}
+
+/* ── HEADER MURAL ── */
+.mural-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;flex-shrink:0;gap:12px;flex-wrap:wrap;
+  background:rgba(0,0,0,0.35);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(8px);
+}
+.mural-titulo{
+  font-family:'Caveat',cursive;font-size:26px;font-weight:700;color:#FFD93D;
+  text-shadow:0 0 20px rgba(255,217,61,0.5);
+}
+.mural-titulo span{color:rgba(255,255,255,0.7);font-size:16px;font-weight:400}
+
+.btn{padding:8px 18px;border:none;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-verde  {background:#4CAF50;color:white}
+.btn-rosa   {background:#FF6B9D;color:white}
+.btn-cinza  {background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.8)}
+
+.status-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);display:inline-block;margin-right:5px}
+.status-dot.ok{background:#4CAF50;box-shadow:0 0 8px #4CAF50}
+.status-dot.erro{background:#FF6B6B;box-shadow:0 0 8px #FF6B6B}
+
+/* ── MOSAICO ── */
+.mosaico-wrap{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.mosaico-titulo{
+  font-family:'Caveat',cursive;font-size:24px;font-weight:700;
+  color:rgba(255,255,255,0.6);text-align:center;
+}
+.mosaico-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;max-width:1100px}
+
+/* ── CARD LIVRO — com perspectiva 3D ── */
+.livro-wrap{position:relative;height:150px;perspective:600px}
+.livro-card{
+  position:relative;height:140px;
+  border-radius:12px;cursor:pointer;
+  transform-style:preserve-3d;
+  transition:transform 0.2s;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.livro-card:hover{transform:scale(1.04) rotate(-1deg) translateY(-4px)}
+
+/* Frente do livro */
+.livro-frente{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  border-radius:12px;padding:16px;
+  border:2px solid rgba(255,255,255,0.2);
+  backface-visibility:hidden;
+  transition:all 0.9s cubic-bezier(0.4,0,0.2,1);
+  transform-origin:left center;
+}
+.livro-frente .grupo-nome{
+  font-family:'Caveat',cursive;font-size:22px;font-weight:700;
+  color:white;text-align:center;
+  text-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+.livro-frente .livro-emoji{font-size:44px}
+.livro-frente .aguardando{
+  font-size:11px;color:rgba(255,255,255,0.75);
+  font-style:italic;text-align:center;
+}
+
+/* Foto revelada */
+.livro-foto{
+  position:absolute;inset:0;height:100%;opacity:0;
+  border-radius:12px;overflow:hidden;
+  transition:opacity 0.4s ease 0.7s;
+}
+.livro-foto img{width:100%;height:100%;object-fit:cover;max-width:100%;max-height:100%}
+.livro-foto .foto-legenda{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(0,0,0,0.8));
+  padding:12px;text-align:center;
+}
+.livro-foto .foto-grupo{
+  font-family:'Caveat',cursive;font-size:18px;font-weight:700;color:white;
+}
+
+/* Animação — livro abre da esquerda como página */
+.livro-card.revelando .livro-frente{
+  animation:abrirLivro 0.9s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes abrirLivro{
+  0%  {transform:rotateY(0deg);opacity:1}
+  50% {transform:rotateY(-90deg);opacity:0.3}
+  100%{transform:rotateY(-180deg);opacity:0}
+}
+.livro-card.aberto .livro-foto{opacity:1}
+.livro-card.aberto .livro-frente{opacity:0;transform:rotateY(-180deg)}
+.livro-card.aguarda .livro-frente{animation:pulsarLivro 2.5s ease-in-out infinite}
+@keyframes pulsarLivro{
+  0%,100%{transform:scale(1);box-shadow:inset 0 0 0 rgba(255,255,255,0)}
+  50%{transform:scale(1.02);box-shadow:inset 0 0 20px rgba(255,255,255,0.1)}
+}
+
+/* ── LÉIA ANIMADA ── */
+.leia-wrap{
+  position:fixed;bottom:0;right:24px;z-index:100;
+  display:flex;flex-direction:column;align-items:center;
+  pointer-events:none;
+  transition:all 0.6s cubic-bezier(0.34,1.2,0.64,1);
+}
+.leia-img{
+  width:110px;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  transition:transform 0.3s ease;
+}
+
+.leia-wrap.vibrando .leia-img{
+  animation:vibrar 0.6s ease;
+}
+@keyframes vibrar{
+  0%,100%{transform:rotate(0deg) scale(1)}
+  20%{transform:rotate(-8deg) scale(1.1)}
+  40%{transform:rotate(8deg) scale(1.14)}
+  60%{transform:rotate(-6deg) scale(1.1)}
+  80%{transform:rotate(4deg) scale(1.06)}
+}
+@keyframes leiaEmpurrar{
+  0%  {transform:translateX(0) rotate(0deg)}
+  30% {transform:translateX(-20px) rotate(-8deg)}
+  60% {transform:translateX(10px) rotate(3deg)}
+  100%{transform:translateX(0) rotate(0deg)}
+}
+@keyframes leiaPular{
+  0%,100%{transform:translateY(0) scale(1)}
+  40%{transform:translateY(-28px) scale(1.1) rotate(-5deg)}
+  70%{transform:translateY(-12px) scale(1.05)}
+}
+
+/* ── OVERLAY FOTO CHEIA ── */
+.foto-full{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.95);z-index:400;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;
+}
+.foto-full.visivel{display:flex}
+.foto-full img{max-width:90vw;max-height:80vh;border-radius:12px;box-shadow:0 0 60px rgba(255,255,255,0.1)}
+.foto-full .nome-full{font-family:'Caveat',cursive;font-size:32px;color:white;font-weight:700}
+.foto-full .fechar-full{
+  position:absolute;top:20px;right:24px;
+  background:rgba(255,255,255,0.15);border:none;color:white;
+  font-size:22px;width:44px;height:44px;border-radius:50%;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+
+/* ── FORMULÁRIO ── */
+.form-wrap{
+  max-width:480px;margin:0 auto;width:100%;height:100%;
+  overflow-y:auto;padding:20px 20px 40px;
+  display:flex;flex-direction:column;
+}
+.form-header{text-align:center;padding:16px 0 20px}
+.form-titulo{
+  font-family:'Caveat',cursive;font-size:28px;font-weight:700;
+  color:#FFD93D;margin-bottom:4px;
+  text-shadow:0 0 16px rgba(255,217,61,0.4);
+}
+.form-sub{font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6}
+.form-grupo{margin-bottom:14px}
+.form-label{
+  font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);
+  text-transform:uppercase;letter-spacing:0.5px;
+  margin-bottom:5px;display:flex;align-items:center;gap:6px;
+}
+input[type=text],textarea{
+  width:100%;
+  border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px;padding:11px 14px;
+  font-family:'DM Sans',sans-serif;font-size:14px;
+  color:white;outline:none;
+  background:rgba(255,255,255,0.08);
+  transition:border-color 0.2s;resize:none;
+}
+input[type=text]:focus,textarea:focus{
+  border-color:#4CAF50;
+  background:rgba(255,255,255,0.12);
+}
+input[type=text]::placeholder,textarea::placeholder{color:rgba(255,255,255,0.3)}
+
+/* Upload */
+.upload-area{
+  border:2.5px dashed rgba(255,255,255,0.2);border-radius:16px;
+  padding:24px;text-align:center;cursor:pointer;
+  transition:all 0.2s;background:rgba(255,255,255,0.05);position:relative;
+}
+.upload-area:hover{border-color:#4CAF50;background:rgba(76,175,80,0.1)}
+.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-emoji{font-size:40px;display:block;margin-bottom:8px}
+.upload-texto{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.5}
+.preview-foto{width:100%;border-radius:12px;margin-top:12px;display:none;max-height:200px;object-fit:cover;border:2px solid rgba(76,175,80,0.4)}
+.preview-foto.visivel{display:block}
+
+.btn-enviar{
+  width:100%;padding:16px;
+  background:linear-gradient(135deg,#4CAF50,#2E7D32);
+  color:white;border:none;border-radius:16px;
+  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;
+  cursor:pointer;transition:all 0.2s;margin-top:8px;
+}
+.btn-enviar:hover{filter:brightness(1.1);transform:translateY(-2px);box-shadow:0 8px 24px rgba(76,175,80,0.4)}
+.btn-enviar:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+.sucesso-wrap{
+  display:none;flex-direction:column;align-items:center;
+  gap:14px;padding:40px 20px;text-align:center;
+}
+.sucesso-wrap.visivel{display:flex}
+.sucesso-emoji{font-size:64px;animation:pularEmoji 0.6s ease}
+@keyframes pularEmoji{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-16px) scale(1.2)}}
+.sucesso-titulo{font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#4CAF50}
+
+/* Animação saída card */
+@keyframes sairCard{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(0.5) rotate(5deg)}}
+
+/* Scroll */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:3px}
+
+@media(max-width:600px){
+  .mosaico-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;max-width:1100px}
+  .mural-header{padding:8px 12px}
+  .leia-img{width:75px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ABAS -->
+  <div class="tabs">
+    <button class="tab-btn ativo" onclick="mudarAba('mural',this)">🖥️ Mural</button>
+    <button class="tab-btn" onclick="mudarAba('form',this)">📱 Enviar foto</button>
+    <div style="flex:1"></div>
+    <span style="font-size:11px;color:rgba(255,255,255,0.4);align-self:center;margin-right:8px">
+      <span class="status-dot" id="sdot"></span>
+      <span id="stxt">conectando...</span>
+    </span>
+  </div>
+
+  <!-- ══ MURAL ══ -->
+  <div class="painel ativo" id="painel-mural">
+    <div class="mural-header">
+      <div>
+        <div class="mural-titulo">📖 Galeria de Criações <span>— AlfaMais Goiás 2026</span></div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Clique no livro para a Léia revelar a produção!</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span id="contBadge" style="background:#4CAF50;color:white;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700">0 enviadas</span>
+        <button class="btn btn-rosa" onclick="revelarTodas()">✨ Revelar todas</button>
+        <button class="btn btn-cinza" onclick="resetarMural()">↺ Resetar</button>
+      </div>
+    </div>
+
+    <div class="mosaico-wrap">
+      <div class="mosaico-titulo" id="mosaicoTitulo">Aguardando os grupos enviarem suas criações... 🎨</div>
+      <div class="mosaico-grid" id="mosaicoGrid"></div>
+    </div>
+  </div>
+
+  <!-- ══ FORMULÁRIO ══ -->
+  <div class="painel" id="painel-form">
+    <div class="form-wrap">
+      <div class="form-header">
+        <span style="font-size:52px;display:block;margin-bottom:8px">🎨</span>
+        <div class="form-titulo">Mostre sua criação!</div>
+        <div class="form-sub">Tire uma foto da produção da sua mesa<br>e envie para aparecer no mural!</div>
+      </div>
+
+      <div id="formConteudo">
+        <div class="form-grupo">
+          <div class="form-label">👥 Nome do grupo ou mesa</div>
+          <input type="text" id="f-grupo" placeholder="Ex: Mesa 1, Grupo das Estrelas..." maxlength="50">
+        </div>
+        <div class="form-grupo">
+          <div class="form-label">💬 Uma frase sobre a criação (opcional)</div>
+          <input type="text" id="f-msg" placeholder="O que vocês criaram?" maxlength="100">
+        </div>
+        <div class="form-grupo">
+          <div class="form-label">📸 Foto da produção</div>
+          <div style="display:flex;gap:10px;margin-bottom:4px">
+            <!-- Câmera direta -->
+            <div class="upload-area" style="flex:1" onclick="document.getElementById('inputCamera').click()">
+              <input type="file" accept="image/*" capture="environment" id="inputCamera" onchange="previewFoto(this)" style="display:none">
+              <span class="upload-emoji">📷</span>
+              <div class="upload-texto">Tirar foto</div>
+            </div>
+            <!-- Galeria -->
+            <div class="upload-area" style="flex:1" onclick="document.getElementById('inputGaleria').click()">
+              <input type="file" accept="image/*" id="inputGaleria" onchange="previewFoto(this)" style="display:none">
+              <span class="upload-emoji">🖼️</span>
+              <div class="upload-texto">Galeria</div>
+            </div>
+          </div>
+          <img id="fotoPreview" class="preview-foto" alt="preview">
+          <button id="btnApagarFoto" onclick="apagarFoto()" style="display:none;margin-top:8px;width:100%;padding:8px;background:rgba(255,107,107,0.15);border:2px solid #FF6B6B;border-radius:10px;color:#FF6B6B;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">
+            ✕ Remover foto
+          </button>
+        </div>
+        <button class="btn-enviar" id="btnEnviar" onclick="enviarFoto()">
+          Enviar para o mural 🚀
+        </button>
+      </div>
+
+      <div class="sucesso-wrap" id="formSucesso">
+        <span class="sucesso-emoji">🎉</span>
+        <div class="sucesso-titulo">Foto enviada!</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6">Sua criação já está no mural.<br>Aguarde a professora revelar! 📖</div>
+        <button class="btn btn-verde" onclick="novoEnvio()" style="margin-top:8px">Enviar outra foto</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- LÉIA ANIMADA -->
+<div class="leia-wrap" id="leiaWrap">
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMjIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjIyMCI+CiAgPCEtLSBDYWJlbG8gLS0+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iNTUiIHJ4PSIzOCIgcnk9IjQyIiBmaWxsPSIjNUMzMzE3Ii8+CiAgPGVsbGlwc2UgY3g9IjI4IiBjeT0iODAiIHJ4PSIxNCIgcnk9IjMwIiBmaWxsPSIjNUMzMzE3Ii8+CiAgPGVsbGlwc2UgY3g9IjkyIiBjeT0iODAiIHJ4PSIxNCIgcnk9IjMwIiBmaWxsPSIjNUMzMzE3Ii8+CiAgPCEtLSBSb3N0byAtLT4KICA8ZWxsaXBzZSBjeD0iNjAiIGN5PSI2MCIgcng9IjI4IiByeT0iMzAiIGZpbGw9IiNFOEE4N0MiLz4KICA8IS0tIMOTY3Vsb3MgLS0+CiAgPGNpcmNsZSBjeD0iNTEiIGN5PSI1OCIgcj0iOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjIuNSIvPgogIDxjaXJjbGUgY3g9IjY5IiBjeT0iNTgiIHI9IjkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIyLjUiLz4KICA8bGluZSB4MT0iNjAiIHkxPSI1OCIgeDI9IjYwIiB5Mj0iNTgiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPGxpbmUgeDE9IjQyIiB5MT0iNTYiIHgyPSIzOCIgeTI9IjU0IiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxsaW5lIHgxPSI3OCIgeTE9IjU2IiB4Mj0iODIiIHkyPSI1NCIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8IS0tIE9saG9zIC0tPgogIDxjaXJjbGUgY3g9IjUxIiBjeT0iNTgiIHI9IjUiIGZpbGw9IndoaXRlIi8+CiAgPGNpcmNsZSBjeD0iNjkiIGN5PSI1OCIgcj0iNSIgZmlsbD0id2hpdGUiLz4KICA8Y2lyY2xlIGN4PSI1MiIgY3k9IjU4IiByPSIzIiBmaWxsPSIjMzMzIi8+CiAgPGNpcmNsZSBjeD0iNzAiIGN5PSI1OCIgcj0iMyIgZmlsbD0iIzMzMyIvPgogIDxjaXJjbGUgY3g9IjUzIiBjeT0iNTciIHI9IjEiIGZpbGw9IndoaXRlIi8+CiAgPGNpcmNsZSBjeD0iNzEiIGN5PSI1NyIgcj0iMSIgZmlsbD0id2hpdGUiLz4KICA8IS0tIE5hcml6IC0tPgogIDxlbGxpcHNlIGN4PSI2MCIgY3k9IjY2IiByeD0iMyIgcnk9IjIiIGZpbGw9IiNENDg5NkEiLz4KICA8IS0tIFNvcnJpc28gLS0+CiAgPHBhdGggZD0iTTUyIDczIFE2MCA4MCA2OCA3MyIgc3Ryb2tlPSIjQzAzOTJCIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDwhLS0gQm9jaGVjaGEgLS0+CiAgPGVsbGlwc2UgY3g9IjQ0IiBjeT0iNzAiIHJ4PSI2IiByeT0iNCIgZmlsbD0iI0ZGOTk5OSIgb3BhY2l0eT0iMC40Ii8+CiAgPGVsbGlwc2UgY3g9Ijc2IiBjeT0iNzAiIHJ4PSI2IiByeT0iNCIgZmlsbD0iI0ZGOTk5OSIgb3BhY2l0eT0iMC40Ii8+CiAgPCEtLSBQZXNjb8OnbyAtLT4KICA8cmVjdCB4PSI1NCIgeT0iODgiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgcng9IjQiIGZpbGw9IiNFOEE4N0MiLz4KICA8IS0tIENhbWlzZXRhIGJyYW5jYSAtLT4KICA8cGF0aCBkPSJNMzAgMTAwIFEyNSA5NSAyMCAxMDUgTDE4IDE1MCBMMTAyIDE1MCBMMTAwIDEwNSBROTUgOTUgOTAgMTAwIFE3NSA5MyA2MCA5MyBRNDUgOTMgMzAgMTAwWiIgZmlsbD0id2hpdGUiLz4KICA8IS0tIEdvbGEgdmVyZGUgLS0+CiAgPHBhdGggZD0iTTMwIDEwMCBRNjAgMTA4IDkwIDEwMCBRNzUgOTMgNjAgOTMgUTQ1IDkzIDMwIDEwMFoiIGZpbGw9IiMyRTdEMzIiLz4KICA8IS0tIFRleHRvIExFSUEgbmEgY2FtaXNldGEgLS0+CiAgPHRleHQgeD0iNjAiIHk9IjEzMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxMSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiM0Q0FGNTAiIGZvbnQtZmFtaWx5PSJBcmlhbCI+TEVJQTwvdGV4dD4KICA8IS0tIEJyYcOnbyBlc3F1ZXJkbyAtLT4KICA8cGF0aCBkPSJNMjIgMTA4IFExMCAxMjAgMTIgMTQwIFExNCAxNDggMjAgMTQ1IFEyNCAxMzAgMjggMTE4WiIgZmlsbD0id2hpdGUiLz4KICA8ZWxsaXBzZSBjeD0iMTQiIGN5PSIxNDMiIHJ4PSI3IiByeT0iNSIgZmlsbD0iI0U4QTg3QyIvPgogIDwhLS0gQnJhw6dvIGRpcmVpdG8gLS0+CiAgPHBhdGggZD0iTTk4IDEwOCBRMTEwIDEyMCAxMDggMTQwIFExMDYgMTQ4IDEwMCAxNDUgUTk2IDEzMCA5MiAxMThaIiBmaWxsPSJ3aGl0ZSIvPgogIDxlbGxpcHNlIGN4PSIxMDYiIGN5PSIxNDMiIHJ4PSI3IiByeT0iNSIgZmlsbD0iI0U4QTg3QyIvPgogIDwhLS0gU2FpYSB2ZXJkZSAtLT4KICA8cGF0aCBkPSJNMjIgMTQ4IFExOCAxODAgMjAgMjAwIEwxMDAgMjAwIFExMDIgMTgwIDk4IDE0OFoiIGZpbGw9IiMyRTdEMzIiLz4KICA8IS0tIFBlcm5hcyAtLT4KICA8cmVjdCB4PSIzOCIgeT0iMTk4IiB3aWR0aD0iMTQiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjRThBODdDIi8+CiAgPHJlY3QgeD0iNjgiIHk9IjE5OCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iI0U4QTg3QyIvPgogIDwhLS0gU2FwYXRvcyAtLT4KICA8ZWxsaXBzZSBjeD0iNDUiIGN5PSIyMTgiIHJ4PSIxMCIgcnk9IjUiIGZpbGw9IiNDMDM5MkIiLz4KICA8ZWxsaXBzZSBjeD0iNzUiIGN5PSIyMTgiIHJ4PSIxMCIgcnk9IjUiIGZpbGw9IiNDMDM5MkIiLz4KPC9zdmc+" alt="Léia" class="leia-img" id="leiaImg">
+</div>
+
+<!-- OVERLAY FOTO CHEIA -->
+<div class="foto-full" id="fotoFull" onclick="fecharFull()">
+  <button class="fechar-full" onclick="fecharFull()">✕</button>
+  <div class="nome-full" id="fullNome"></div>
+  <img id="fullImg" src="" alt="">
+  <div style="font-size:13px;color:rgba(255,255,255,0.5);font-style:italic" id="fullMsg"></div>
+</div>
+
+<!-- Container confetes (mantido mas não usado) -->
+<div style="position:fixed;inset:0;pointer-events:none;z-index:200" id="confetes"></div>
+
+<script>
+// ══════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════
+// ── FIREBASE CONFIG ──
+let db;
+
+function iniciarFirebase() {
+  if (typeof firebase === 'undefined') {
+    setTimeout(iniciarFirebase, 200);
+    return;
+  }
+  try {
+    firebase.initializeApp({
+      apiKey: "AIzaSyAEXHNL1HlrCzEZ-CMPvmCnzf0PvS-UX90",
+      authDomain: "alfamais-mural.firebaseapp.com",
+      databaseURL: "https://alfamais-mural-default-rtdb.firebaseio.com",
+      projectId: "alfamais-mural",
+      storageBucket: "alfamais-mural.firebasestorage.app",
+      messagingSenderId: "1047946254201",
+      appId: "1:1047946254201:web:0c2ab3b000001bbe3801a8"
+    });
+    db = firebase.database();
+    db.ref('.info/connected').on('value', snap => {
+      const ok = snap.val() === true;
+      setStatus(ok);
+      if(ok) ouvirGaleria();
+    });
+  } catch(e) {
+    console.error('Firebase erro:', e);
+    setStatus(false);
+  }
+}
+document.addEventListener('DOMContentLoaded', iniciarFirebase);
+
+function setStatus(ok){
+  document.getElementById('sdot').className = 'status-dot ' + (ok?'ok':'erro');
+  document.getElementById('stxt').textContent = ok ? 'conectado ✓' : 'erro de conexão';
+}
+
+// ══════════════════════════════════════
+// ABAS
+// ══════════════════════════════════════
+function mudarAba(aba, btn){
+  document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('ativo'));
+  document.getElementById('painel-'+aba).classList.add('ativo');
+  if(btn) btn.classList.add('ativo');
+}
+
+// ══════════════════════════════════════
+// MOSAICO — ESCUTAR TEMPO REAL
+// ══════════════════════════════════════
+const CORES_LIVRO = [
+  'linear-gradient(135deg,#FF6B9D,#C77DFF)',
+  'linear-gradient(135deg,#4D96FF,#4ECDC4)',
+  'linear-gradient(135deg,#FF9A3C,#FFD93D)',
+  'linear-gradient(135deg,#6BCB77,#4CAF50)',
+  'linear-gradient(135deg,#C77DFF,#4D96FF)',
+  'linear-gradient(135deg,#FF6B6B,#FF9A3C)',
+];
+
+let cartoes = {}; // id -> elemento DOM
+let contEnviadas = 0;
+
+function ouvirGaleria(){
+  db.ref('galeria').on('value', snap => {
+    const lista = [];
+    snap.forEach(child => lista.push({id: child.key, ...child.val()}));
+    contEnviadas = lista.length;
+    document.getElementById('contBadge').textContent = contEnviadas + ' enviada' + (contEnviadas!==1?'s':'');
+    if(contEnviadas>0){
+      document.getElementById('mosaicoTitulo').textContent =
+        contEnviadas + ' grupo' + (contEnviadas!==1?'s':'') + ' enviou! Clique no livro para revelar 📖';
+    }
+    renderizarMosaico(lista);
+  });
+}
+
+function renderizarMosaico(lista){
+  const grid = document.getElementById('mosaicoGrid');
+  const vazio = document.getElementById('muralVazio');
+  contEnviadas = lista.length;
+  document.getElementById('contBadge').textContent = contEnviadas + ' enviada' + (contEnviadas!==1?'s':'');
+
+  if(contEnviadas > 0){
+    document.getElementById('mosaicoTitulo').textContent =
+      contEnviadas + ' grupo' + (contEnviadas!==1?'s':'') + ' enviou! Clique no livro para a Léia revelar 📖';
+    if(vazio) vazio.style.display = 'none';
+  }
+
+  const existentes = new Set(Object.keys(cartoes));
+  const CORES = ['linear-gradient(145deg,#FF6B9D,#C77DFF)', 'linear-gradient(145deg,#4D96FF,#4ECDC4)', 'linear-gradient(145deg,#FF9A3C,#FFD93D)', 'linear-gradient(145deg,#6BCB77,#4CAF50)', 'linear-gradient(145deg,#C77DFF,#4D96FF)', 'linear-gradient(145deg,#FF6B6B,#FF9A3C)'];
+
+  lista.forEach((item, idx) => {
+    if(existentes.has(String(item.id))) return;
+
+    const cor = CORES[idx % CORES.length];
+    const wrap = document.createElement('div');
+    wrap.className = 'livro-wrap';
+    wrap.style.animation = 'entrarCard 0.5s cubic-bezier(0.34,1.4,0.64,1)';
+
+    const card = document.createElement('div');
+    card.className = 'livro-card';
+    card.dataset.id = item.id;
+    card.dataset.foto = item.foto_url || '';
+    card.dataset.grupo = item.grupo || 'Grupo';
+
+    card.innerHTML = `
+      <div class="livro-frente" style="--cor1:${cor.split(',')[1]?.trim()||'#FF6B9D'};background:${cor}">
+        <span class="livro-emoji">📖</span>
+        <div class="grupo-nome">${esc(item.grupo||'Grupo')}</div>
+        <div class="aguardando">Clique para revelar!</div>
+      </div>
+      <div class="livro-foto">
+        ${item.foto_url
+          ? `<img src="${item.foto_url}" alt="${esc(item.grupo)}" loading="lazy">`
+          : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;background:#222">🎨</div>'
+        }
+        <div class="foto-label">
+          <div class="foto-grupo">${esc(item.grupo||'')}</div>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
+      if(card.classList.contains('aberto')){
+        // Amplia foto
+        document.getElementById('fullImg').src = item.foto_url || '';
+        document.getElementById('fullNome').textContent = item.grupo || '';
+        document.getElementById('fotoFull').classList.add('visivel');
+      } else {
+        revelarCard(card, wrap);
+      }
+    });
+
+    // Botão deletar
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-del';
+    btnDel.innerHTML = '🗑';
+    btnDel.title = 'Deletar';
+    btnDel.addEventListener('click', e => {
+      e.stopPropagation();
+      if(confirm('Deletar o card de ' + (item.grupo||'este grupo') + '?')){
+        const chave = String(item.id);
+        console.log('Deletando:', chave);
+        if(db){
+          db.ref('galeria').child(chave).remove()
+            .then(() => {
+              wrap.style.animation = 'sairCard 0.3s ease forwards';
+              setTimeout(() => { wrap.remove(); delete cartoes[chave]; }, 300);
+            })
+            .catch(e => alert('Erro ao deletar: ' + e.message));
+        }
+      }
+    });
+    wrap.appendChild(btnDel);
+    wrap.appendChild(card);
+    grid.appendChild(wrap);
+    cartoes[String(item.id)] = card;
+  });
+}
+
+function revelarCard(card, wrap){
+  if(card.classList.contains('aberto') || card.classList.contains('abrindo')) return;
+
+  const leia = document.getElementById('leiaWrap');
+
+  // Léia se move até o card
+  if(leia){
+    const rect = card.getBoundingClientRect();
+    const distRight = Math.max(8, window.innerWidth - rect.right + 10);
+    const distBottom = Math.max(0, window.innerHeight - rect.bottom - 10);
+    leia.style.transition = 'all 0.5s cubic-bezier(0.4,0,0.2,1)';
+    leia.style.right  = distRight + 'px';
+    leia.style.bottom = distBottom + 'px';
+  }
+
+  // Após chegar — empurra o livro
+  setTimeout(() => {
+    if(leia) leia.classList.add('vibrando');
+    card.classList.add('abrindo');
+
+    setTimeout(() => {
+      card.classList.remove('abrindo');
+      card.classList.add('aberto');
+      // Léia pula de alegria
+      if(leia){
+        leia.classList.remove('vibrando');
+        leia.classList.add('pulando');
+        setTimeout(() => {
+          leia.classList.remove('pulando');
+          // Volta para casa
+          leia.style.transition = 'all 0.8s cubic-bezier(0.34,1.2,0.64,1)';
+          leia.style.right  = '24px';
+          leia.style.bottom = '0px';
+        }, 650);
+      }
+    }, 900);
+  }, 520);
+}
+
+function revelarTodas(){
+  const cards = document.querySelectorAll('.livro-card:not(.aberto)');
+  cards.forEach((card, i) => {
+    setTimeout(() => revelarCard(card), i * 700);
+  });
+}
+
+function resetarMural(){
+  if(!confirm('Resetar o mural? Isso remove as revelações (não apaga as fotos).')) return;
+  document.querySelectorAll('.livro-card').forEach(c => {
+    c.classList.remove('aberto','abrindo');
+  });
+}
+
+function fecharFull(){
+  document.getElementById('fotoFull').classList.remove('visivel');
+}
+
+// ══════════════════════════════════════
+// CONFETES
+// ══════════════════════════════════════
+// Confetes removidos
+
+// ══════════════════════════════════════
+// FORMULÁRIO — UPLOAD + ENVIO
+// ══════════════════════════════════════
+let arquivoSelecionado = null;
+
+function previewFoto(input){
+  const file = input.files[0];
+  if(!file) return;
+  arquivoSelecionado = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('fotoPreview');
+    prev.src = e.target.result;
+    prev.classList.add('visivel');
+    document.getElementById('btnApagarFoto').style.display = 'block';
+    document.getElementById('uploadArea').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function apagarFoto(){
+  arquivoSelecionado = null;
+  const prev = document.getElementById('fotoPreview');
+  prev.src = '';
+  prev.classList.remove('visivel');
+  document.getElementById('btnApagarFoto').style.display = 'none';
+  document.getElementById('uploadArea').style.display = 'block';
+  document.getElementById('inputCamera').value = ''; document.getElementById('inputGaleria').value = '';
+}
+
+async function enviarFoto(){
+  const grupo = document.getElementById('f-grupo').value.trim();
+  const msg   = document.getElementById('f-msg').value.trim();
+
+  if(!grupo){ alert('Escreva o nome do seu grupo! 😊'); return; }
+  if(!arquivoSelecionado){ alert('Selecione uma foto! 📸'); return; }
+
+  const btn = document.getElementById('btnEnviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando... ⏳';
+
+  try {
+    btn.textContent = 'Fazendo upload... ⏳';
+
+    // Converte foto para base64 para salvar direto no Firebase Database
+    // (evita problemas de CORS no Storage)
+    const fotoBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      // Reduz tamanho da imagem antes de enviar
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 600;
+          let w = img.width, h = img.height;
+          if(w > MAX){ h = Math.round(h * MAX/w); w = MAX; }
+          if(h > MAX){ w = Math.round(w * MAX/h); h = MAX; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(arquivoSelecionado);
+    });
+
+    btn.textContent = 'Enviando... ⏳';
+
+    // Salva no Realtime Database com foto em base64
+    await db.ref('galeria').push({
+      grupo,
+      foto_url: fotoBase64,
+      mensagem: msg,
+      ts: Date.now()
+    });
+
+    // Sucesso!
+    document.getElementById('formConteudo').style.display = 'none';
+    document.getElementById('formSucesso').classList.add('visivel');
+
+  } catch(e) {
+    console.error(e);
+    alert('Erro ao enviar: ' + (e.message || e));
+    btn.disabled = false;
+    btn.textContent = 'Enviar para o mural 🚀';
+  }
+}
+
+function novoEnvio(){
+  arquivoSelecionado = null;
+  document.getElementById('f-grupo').value = '';
+  document.getElementById('f-msg').value = '';
+  document.getElementById('fotoPreview').classList.remove('visivel');
+  document.getElementById('fotoPreview').src = '';
+  document.getElementById('inputCamera').value = ''; document.getElementById('inputGaleria').value = '';
+  document.getElementById('formConteudo').style.display = 'block';
+  document.getElementById('formSucesso').classList.remove('visivel');
+  const btn = document.getElementById('btnEnviar');
+  btn.disabled = false;
+  btn.textContent = 'Enviar para o mural 🚀';
+}
+
+function esc(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
+</body>
+</html>
